@@ -44,6 +44,7 @@ public class ColorBlobDetectionActivity extends Activity implements OnTouchListe
     private MenuItem mPrewievRoi;
     private MenuItem mPrewievNothing;
 
+    
     private BaseLoaderCallback  mLoaderCallback = new BaseLoaderCallback(this) {
         @Override
         public void onManagerConnected(int status) {
