@@ -177,7 +177,7 @@ public class ColorBlobDetector {
     }
        
     /**Pronalazi roi na zadanoj slici, sluzi za pronalazenje roia na frameu*/
-    public void findInitialRoi(Mat rgbaImage)
+    public void initRoi(Mat rgbaImage)
     {
     	if(contours.size() > 0)
     	{
@@ -212,7 +212,7 @@ public class ColorBlobDetector {
     	}
     }
     
-    public void findNewRoi(Mat rgbaImage)
+    public void updateRoi(Mat rgbaImage)
     {
     	mBiggestContour = contours.get(maxContourPosition);
     	Core.multiply(mBiggestContour, new Scalar(4,4), mBiggestContour);	

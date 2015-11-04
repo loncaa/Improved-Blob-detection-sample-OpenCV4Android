@@ -156,7 +156,7 @@ public class ColorBlobDetectionActivity extends Activity implements OnTouchListe
 			if(mInitialContureArea != -1)
 			{
 				//Find initial/starting region of interes
-				mDetector.findInitialRoi(mRgba); 
+				mDetector.initRoi(mRgba); 
 				
 				mIsColorSelected = true;
 				contourLost = false;
@@ -213,7 +213,7 @@ public class ColorBlobDetectionActivity extends Activity implements OnTouchListe
     		if(mContureArea != -1)
     		{
     			//Finds new roi and update global roi.
-    			mDetector.findNewRoi(mRgba);
+    			mDetector.updateRoi(mRgba);
     			Core.circle(mRgba, mDetector.getCentroid(), 10, new Scalar(255, 0, 0)); 
     		}
     		else{
@@ -227,7 +227,7 @@ public class ColorBlobDetectionActivity extends Activity implements OnTouchListe
     		double area = mDetector.findMaxContour(mRgba);
     		if(area != -1)
 			{
-    			mDetector.findInitialRoi(mRgba);
+    			mDetector.initRoi(mRgba);
     			contourLost = false;
 			}
     	}
