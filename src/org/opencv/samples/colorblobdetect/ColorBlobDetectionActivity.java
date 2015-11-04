@@ -32,7 +32,6 @@ public class ColorBlobDetectionActivity extends Activity implements OnTouchListe
   
     private Mat mRgba; 
     private ColorBlobDetector mDetector;
-    private FpsMeter meter;
     private CameraBridgeViewBase mOpenCvCameraView;
 
     private boolean mIsColorSelected = false;
@@ -44,7 +43,10 @@ public class ColorBlobDetectionActivity extends Activity implements OnTouchListe
     private MenuItem mPrewievRoi;
     private MenuItem mPrewievNothing;
 
+    private FpsMeter meter;
+
     
+    /***/
     private BaseLoaderCallback  mLoaderCallback = new BaseLoaderCallback(this) {
         @Override
         public void onManagerConnected(int status) {
@@ -54,12 +56,13 @@ public class ColorBlobDetectionActivity extends Activity implements OnTouchListe
                     Log.i(TAG, "OpenCV loaded successfully");
                     mOpenCvCameraView.enableView();
                     mOpenCvCameraView.setOnTouchListener(ColorBlobDetectionActivity.this);
+                    
+                    //Scale down resolution
                     //mOpenCvCameraView.setResolution(720, 480);
-                    
-                    //SMANJITIT REZOLUCIJU
-                    
-                    meter = new FpsMeter();
-                    meter.init();
+                                        
+                    //Mesurng fps
+                    //meter = new FpsMeter();
+                    //meter.init();
                 } break;
                 default:
                 {
@@ -108,6 +111,7 @@ public class ColorBlobDetectionActivity extends Activity implements OnTouchListe
             mOpenCvCameraView.disableView();
     }
 
+    /**Callled when camera is started.*/
     public void onCameraViewStarted(int width, int height) {
         mRgba = new Mat(height, width, CvType.CV_8UC4);
         mDetector = new ColorBlobDetector();
@@ -119,7 +123,9 @@ public class ColorBlobDetectionActivity extends Activity implements OnTouchListe
 
     public boolean onTouch(View v, MotionEvent event) {
 		
-		//nije najbolji nacin pretvaranja koordinata
+		/*Not the best way for coordinate transformation!
+		 *If screen image has black space on sides there will be an error.
+		 */
 		int cols = mRgba.cols();
 		int rows = mRgba.rows();  
 
@@ -129,25 +135,28 @@ public class ColorBlobDetectionActivity extends Activity implements OnTouchListe
 		if ((xpos < 0) || (ypos < 0) || (xpos > cols) || (ypos > rows)) return false;
 		//
 
+		//If object isn't selected.
 		if(!mIsColorSelected)
 		{
-			//kvadrat 8*8
+			//Rectangle of 8x8 pixels.
 			Rect roiRect = new Rect();
 			roiRect.x = (xpos>4) ? xpos-4 : 0;
 			roiRect.y = (ypos>4) ? ypos-4 : 0;
 			
-			//da ne uzima roi izvan slike
-			roiRect.width = (xpos+4 < cols) ? xpos + 4 - roiRect.x : cols - roiRect.x;
-			roiRect.height = (ypos+4 < rows) ? ypos + 4 - roiRect.y : rows - roiRect.y;
+			//Checking size of whole frame and setting size of roi.
+			roiRect.width = (xpos + 4 < cols) ? xpos + 4 - roiRect.x : cols - roiRect.x;
+			roiRect.height = (ypos + 4 < rows) ? ypos + 4 - roiRect.y : rows - roiRect.y;
 			
 			mDetector.setHsvColor(mRgba, roiRect);
 			
-			//pronalazi najvecu konturu na clijeom frameu
+			//Finding biggest contour.
 			double mInitialContureArea = mDetector.findMaxContour(mRgba);
 			
+			//If countour is found.
 			if(mInitialContureArea != -1)
 			{
-				mDetector.findInitialRoi(mRgba); //pronalazi pocetni roi, koji se u odnosu sa koordinatama cijelog framea
+				//Find initial/starting region of interes
+				mDetector.findInitialRoi(mRgba); 
 				
 				mIsColorSelected = true;
 				contourLost = false;
@@ -165,19 +174,20 @@ public class ColorBlobDetectionActivity extends Activity implements OnTouchListe
         return false;
     }
 
+    /**It's called on every frame continiously*/
     public Mat onCameraFrame(CvCameraViewFrame inputFrame) {
 
     	mRgba = inputFrame.rgba();
     	
     	if(mIsColorSelected && !contourLost)
     	{
-    		//trazi najvecu konturu na roi-u
+    		//Finds biggest countour on region of interes.
     		double mContureArea = mDetector.findMaxContour(mDetector.getRoi());
     		
     		//DEBUG MODES
     		if(debugMode == 0)
     		{
-    			//nema ništa
+    			//Just nothing.
     		}
     		else if(debugMode == 1)
     		{
@@ -199,16 +209,20 @@ public class ColorBlobDetectionActivity extends Activity implements OnTouchListe
     		}
     		//
 
+    		//If contour is found.
     		if(mContureArea != -1)
     		{
-    			mDetector.findNewRoi(mRgba); //pronalazi roi na prosirenom roiu i onda apdejta globalni roi
+    			//Finds new roi and update global roi.
+    			mDetector.findNewRoi(mRgba);
     			Core.circle(mRgba, mDetector.getCentroid(), 10, new Scalar(255, 0, 0)); 
     		}
     		else{
-    			contourLost = true; //ako se izgubi
+    			//Roi is lost.
+    			contourLost = true;
     		}
     	}
-    	else if(contourLost && mIsColorSelected) // ako je odreðen roi i ako je izgubljena kontura, pretrazuje se cijeli frame
+    	//If roi is lost, pocess whole frame.
+    	else if(contourLost && mIsColorSelected)
     	{
     		double area = mDetector.findMaxContour(mRgba);
     		if(area != -1)

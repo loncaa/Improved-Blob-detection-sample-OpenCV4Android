@@ -86,7 +86,10 @@ public class ColorBlobDetector {
         mColorRadius = radius;
     }
 
-    /**nakon što se izracuna average vrijednost roia, za hue, sat i value pronalaze se min i max vrijednosti tako da se od hue radi +-25, dok sat i value +-50*/
+    /**After calculating average value of Roi, 
+     * this function finds min and max value for each channel.
+     * +-25 hue, sat and value +-50
+     */
     private void calculateUpperAndLowerBound(Scalar hsvColor) {
     	
         double minH = (hsvColor.val[0] >= mColorRadius.val[0]) ? hsvColor.val[0] - mColorRadius.val[0] : 0;
@@ -106,7 +109,7 @@ public class ColorBlobDetector {
 
         Mat spectrumHsv = new Mat(1, (int)(maxH-minH), CvType.CV_8UC3);
 
-        //gradi spektar boja koji se proteze od hue-25 do hue+25, 
+        //Making spectrum.
         for (int j = 0; j < maxH-minH; j++) {
             byte[] tmp = {(byte)(minH+j), (byte)255, (byte)255};
             spectrumHsv.put(0, j, tmp);
@@ -115,6 +118,7 @@ public class ColorBlobDetector {
         Imgproc.cvtColor(spectrumHsv, mSpectrum, Imgproc.COLOR_HSV2RGB_FULL, 4);
     }
     
+    /**Sets HSV color of selected roi*/
     public void setHsvColor(Mat image, Rect roi) {
     	
     	Mat touchedRgb = image.submat(roi);
@@ -123,11 +127,12 @@ public class ColorBlobDetector {
         
 		Imgproc.cvtColor(touchedRgb, touchedHsv, Imgproc.COLOR_RGB2HSV_FULL);
 
-		// raèuna prosjecnu vrijednost za svaki kanal hsv slike
-		//8*8 piskela je velik roi, zbrajanjem svih piksela i djeljenjem sa 64 dobije se prosjek
+		/*Calculating average value for each channel
+		 *8 x 8  pixels in roi for each channel
+		 *sum values of channel and divide with (8x8)*/
         mBlobColorHsv = Core.sumElems(touchedHsv);
         int pointCount = roi.width*roi.height;
-        for (int i = 0; i < mBlobColorHsv.val.length; i++) //??
+        for (int i = 0; i < mBlobColorHsv.val.length; i++)
             mBlobColorHsv.val[i] /= pointCount;
         
         mBlobColorRgba = converScalarHsv2Rgba(mBlobColorHsv);
@@ -140,13 +145,14 @@ public class ColorBlobDetector {
         touchedRgb.release();
     }
 
-    /**Funkcija koja pronalazi najvecu konturu na slici rgbaImage
-     * @param rgbaImage Mat na kojoj se pronalazi najveca kontura.
-     * @return vraca -1 ako nema konture, odnosno vraca njezinu velicinu ako ima*/
+    /**Function that finds biggest countour ind image (rgbaImage)
+     * @param rgbaImage Mat on which is located object.
+     * @return returns -1 if contour isn't found, size of contour if it is found.*/
     public double findMaxContour(Mat rgbaImage)
     {
     	mMaxContourArea = -1;
 
+    	//Scale it down 2 times for making it faster
         Imgproc.pyrDown(rgbaImage, mPyrDownMat); 
         Imgproc.pyrDown(mPyrDownMat, mPyrDownMat); 
         Imgproc.cvtColor(mPyrDownMat, mHsvMat, Imgproc.COLOR_RGB2HSV_FULL);
@@ -155,11 +161,11 @@ public class ColorBlobDetector {
         Imgproc.dilate(mMask, mDilatedMask, new Mat());
 
         contours.clear();
-        Imgproc.findContours(mDilatedMask, contours, mHierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE); //obrada
+        Imgproc.findContours(mDilatedMask, contours, mHierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE); //cost!
         
     	for(int i = 0; i < contours.size(); i++)
     	{
-    		double area = Imgproc.contourArea(contours.get(i)); //obrada
+    		double area = Imgproc.contourArea(contours.get(i)); //area of contoure, cost!
     		if(area > mMaxContourArea)
     		{
     			mMaxContourArea = area;
@@ -176,18 +182,19 @@ public class ColorBlobDetector {
     	if(contours.size() > 0)
     	{
 	    	mBiggestContour = contours.get(maxContourPosition);
-	    	Core.multiply(mBiggestContour, new Scalar(4,4), mBiggestContour);
 	    	
-	    	//koordinate konture u odnosu na cijeli frame.
+	    	//Scale it up 4 times, 4 x X-axis and 4 x Y-axis
+	    	Core.multiply(mBiggestContour, new Scalar(4,4), mBiggestContour); 
+	    	
+	    	//Finding coordinates of object centroid.
 	        Moments m = Imgproc.moments(mBiggestContour);
 	        centroid.x =  (m.get_m10() / m.get_m00());
 	        centroid.y = (m.get_m01() / m.get_m00());
 	    	 	
-	    	MatOfPoint2f contour2f = new MatOfPoint2f(mBiggestContour.toArray());
+	        //Rect around contour.
+	    	MatOfPoint2f contour2f = new MatOfPoint2f(mBiggestContour.toArray()); //cost
 	    	double approxDistance = Imgproc.arcLength(contour2f, true)*0.01f;
 	    	Imgproc.approxPolyDP(contour2f, approxCurve, approxDistance, true);
-	    	
-	    	//Rect koji opisuje kontoru
 	    	globalRect = Imgproc.boundingRect(new MatOfPoint(approxCurve.toArray()));
 	
 	    	int newy = globalRect.y - offset < 0 ? 0 : globalRect.y - offset;
@@ -209,17 +216,13 @@ public class ColorBlobDetector {
     {
     	mBiggestContour = contours.get(maxContourPosition);
     	Core.multiply(mBiggestContour, new Scalar(4,4), mBiggestContour);	
-           	
-    	//rect okolo konture
+    
     	MatOfPoint2f contour2f = new MatOfPoint2f(mBiggestContour.toArray());
     	double approxDistance = Imgproc.arcLength(contour2f, true)*0.01f;
     	Imgproc.approxPolyDP(contour2f, approxCurve, approxDistance, true);
-    	
-    	//ima koordinate u odnosu na onaj prošli roi.
     	rect = Imgproc.boundingRect(new MatOfPoint(approxCurve.toArray())); 
 
     	//KOD NAGLOG POMICANJA DODE DO VELIKOG ŠUMA!
-    	
     	if(rect.x > offset + 10)
     		globalRect.x = globalRect.x + (rect.x - offset) < rgbaImage.cols() ? globalRect.x + (rect.x - offset) : globalRect.x;
     	else if(rect.x < offset - 10)
@@ -235,7 +238,7 @@ public class ColorBlobDetector {
     	
     	mRoi = rgbaImage.submat(globalRect);
     	
-        Moments m = Imgproc.moments(mBiggestContour); //obrada
+        Moments m = Imgproc.moments(mBiggestContour); //cost
         centroid.x = globalRect.x + (m.get_m10() / m.get_m00());
         centroid.y = globalRect.y + (m.get_m01() / m.get_m00());
     	
